@@ -1,7 +1,8 @@
 import * as React from 'react'
-import { Redirect, Route, RouteProps } from 'react-router'
+import type { RouteProps } from 'react-router'
+import { Redirect, Route } from 'react-router'
 import { observer } from 'mobx-react'
-import { UserRole } from 'src/models/user.models'
+import type { UserRole } from 'src/models/user.models'
 import Text from 'src/components/Text'
 import Flex from 'src/components/Flex'
 import { AuthWrapper } from 'src/components/Auth/AuthWrapper'
@@ -31,7 +32,11 @@ export class AuthRoute extends React.Component<IProps, IState> {
           this.props.redirect ? (
             <Redirect to={this.props.redirect} />
           ) : (
-            <Flex justifyContent="center" mt="40px" data-cy="auth-route-deny">
+            <Flex
+              sx={{ justifyContent: 'center' }}
+              mt="40px"
+              data-cy="auth-route-deny"
+            >
               <Text regular>
                 {roleRequired
                   ? `${roleRequired} role required to access this page`
@@ -41,7 +46,7 @@ export class AuthRoute extends React.Component<IProps, IState> {
           )
         }
       >
-        <Route {...rest} render={props => <Component {...props} />} />
+        <Route {...rest} render={(props) => <Component {...props} />} />
       </AuthWrapper>
     )
   }

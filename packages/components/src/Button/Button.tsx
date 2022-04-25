@@ -1,13 +1,13 @@
 import * as React from 'react'
-import {
-  Button as RebassButton,
-  ButtonProps as RebassButtonProps,
-} from 'rebass/styled-components'
-import styled from 'styled-components'
+import { Icon } from '../Icon/Icon'
+import type { IGlyphs } from '../Icon/types'
+import type { ButtonProps as ThemeUiButtonProps } from 'theme-ui'
+import { Button as ThemeUiButton } from 'theme-ui'
+import styled from '@emotion/styled'
 
 // extend to allow any default button props (e.g. onClick) to also be passed
 export interface IBtnProps extends React.ButtonHTMLAttributes<HTMLElement> {
-  icon?: any
+  icon?: keyof IGlyphs
   disabled?: boolean
   translateY?: boolean
   small?: boolean
@@ -49,20 +49,27 @@ const translateY = (props: IBtnProps) =>
       }
     : null
 
-export type BtnProps = IBtnProps & RebassButtonProps
+export type BtnProps = IBtnProps & ThemeUiButtonProps
 
-const BaseButton = styled(RebassButton)`
+const BaseButton = styled(ThemeUiButton, {
+  // avoid passing custom props
+  shouldForwardProp: (prop: keyof IBtnProps) =>
+    !['translateY', 'small', 'medium', 'large'].includes(prop),
+})`
   ${translateY}
   ${small}
   ${medium}
   ${large}
 `
 
-export const Button = (props: BtnProps) => (
-  <BaseButton {...props}>
-    <span>{props.children}</span>
-  </BaseButton>
-)
+export const Button = (props: BtnProps) => {
+  return (
+    <BaseButton {...props}>
+      {props.icon && <Icon glyph={props.icon} marginRight="4px" />}
+      <span>{props.children}</span>
+    </BaseButton>
+  )
+}
 
 Button.defaultProps = {
   type: 'button',

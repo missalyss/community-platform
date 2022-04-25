@@ -6,11 +6,13 @@ import {
   runInAction,
   toJS,
 } from 'mobx'
+import type { IResearchStats, IResearchDB } from 'src/models/research.models'
 import { createContext, useContext } from 'react'
-import { IConvertedFileMeta } from 'src/components/ImageInput/ImageInput'
+import type { IConvertedFileMeta } from 'src/types'
+import { getUserCountry } from 'src/utils/getUserCountry'
 import { logger } from 'src/logger'
-import { IComment, IUser } from 'src/models'
-import { IResearch } from 'src/models/research.models'
+import type { IComment, IUser } from 'src/models'
+import type { IResearch } from 'src/models/research.models'
 import { ModuleStore } from 'src/stores/common/module.store'
 import {
   filterModerableItems,
@@ -22,12 +24,17 @@ import {
 const COLLECTION_NAME = 'research'
 
 export class ResearchStore extends ModuleStore {
+  @observable
+  public activeResearch: IResearchDB | undefined
   @observable public allResearchItems: IResearch.ItemDB[] = []
   @observable public activeResearchItem: IResearch.ItemDB | undefined
   @observable
-  public researchUploadStatus: IResearchUploadStatus = getInitialResearchUploadStatus()
+  public researchUploadStatus: IResearchUploadStatus =
+    getInitialResearchUploadStatus()
   @observable
-  public updateUploadStatus: IUpdateUploadStatus = getInitialUpdateUploadStatus()
+  public updateUploadStatus: IUpdateUploadStatus =
+    getInitialUpdateUploadStatus()
+  @observable researchStats: IResearchStats | undefined
 
   constructor() {
     super(null as any, 'research')
@@ -50,6 +57,7 @@ export class ResearchStore extends ModuleStore {
 
   public async setActiveResearchItem(slug?: string) {
     if (slug) {
+      this.researchStats = undefined
       const collection = await this.db
         .collection<IResearch.ItemDB>(COLLECTION_NAME)
         .getWhere('slug', '==', slug)
@@ -57,6 +65,8 @@ export class ResearchStore extends ModuleStore {
       runInAction(() => {
         this.activeResearchItem = researchItem
       })
+      // load Research stats which are stored in a separate subcollection
+      await this.loadResearchStats(researchItem?._id)
       return researchItem
     } else {
       runInAction(() => {
@@ -65,11 +75,20 @@ export class ResearchStore extends ModuleStore {
     }
   }
 
+  @action
+  private async loadResearchStats(id?: string) {
+    if (id) {
+      const ref = this.db
+        .collection<IResearchStats>('research')
+        .doc(`${id}/stats/all`)
+      const researchStats = await ref.get('server')
+      logger.debug('researchStats', researchStats)
+      this.researchStats = researchStats || { votedUsefulCount: 0 }
+    }
+  }
+
   public deleteResearchItem(id: string) {
-    this.db
-      .collection('research')
-      .doc(id)
-      .delete()
+    this.db.collection('research').doc(id).delete()
   }
 
   public async moderateResearch(research: IResearch.ItemDB) {
@@ -104,7 +123,10 @@ export class ResearchStore extends ModuleStore {
     this.updateUploadStatus = getInitialUpdateUploadStatus()
   }
 
-  public async addComment(text: string, update: IResearch.Update | IResearch.UpdateDB) {
+  public async addComment(
+    text: string,
+    update: IResearch.Update | IResearch.UpdateDB,
+  ) {
     const user = this.activeUser
     const item = this.activeResearchItem
     const comment = text.slice(0, 400).trim()
@@ -116,35 +138,33 @@ export class ResearchStore extends ModuleStore {
       const id = dbRef.id
 
       try {
+        const userCountry = getUserCountry(user)
         const newComment: IComment = {
           _id: randomID(),
           _created: new Date().toISOString(),
           _creatorId: user._id,
           creatorName: user.userName,
-          creatorCountry:
-            user.country?.toLowerCase() ||
-            user.location?.countryCode?.toLowerCase() ||
-            null,
+          creatorCountry: userCountry,
           text: comment,
         }
 
         const updateWithMeta = { ...update }
         if (update.images.length > 0) {
           const imgMeta = await this.uploadCollectionBatch(
-            update.images.filter(img => !!img) as IConvertedFileMeta[],
+            update.images.filter((img) => !!img) as IConvertedFileMeta[],
             COLLECTION_NAME,
             id,
           )
-          const newImg = imgMeta.map((img) => ({...img}))
+          const newImg = imgMeta.map((img) => ({ ...img }))
           updateWithMeta.images = newImg
         } else updateWithMeta.images = []
 
         updateWithMeta.comments = updateWithMeta.comments
-        ? [...toJS(updateWithMeta.comments), newComment]
-        : [newComment]
+          ? [...toJS(updateWithMeta.comments), newComment]
+          : [newComment]
 
         const existingUpdateIndex = item.updates.findIndex(
-          upd => upd._id === (update as IResearch.UpdateDB)._id,
+          (upd) => upd._id === (update as IResearch.UpdateDB)._id,
         )
 
         const newItem = {
@@ -168,35 +188,39 @@ export class ResearchStore extends ModuleStore {
     }
   }
 
-  public async deleteComment(commentId: string, update: IResearch.Update | IResearch.UpdateDB) {
+  public async deleteComment(
+    commentId: string,
+    update: IResearch.Update | IResearch.UpdateDB,
+  ) {
     try {
       const item = this.activeResearchItem
       const user = this.activeUser
       if (commentId && item && user && update.comments) {
         const dbRef = this.db
-        .collection<IResearch.Item>(COLLECTION_NAME)
-        .doc(item._id)
+          .collection<IResearch.Item>(COLLECTION_NAME)
+          .doc(item._id)
         const id = dbRef.id
 
         const newComments = toJS(update.comments).filter(
-          comment => !(comment._creatorId === user._id && comment._id === commentId),
+          (comment) =>
+            !(comment._creatorId === user._id && comment._id === commentId),
         )
-        
+
         const updateWithMeta = { ...update }
         if (update.images.length > 0) {
           const imgMeta = await this.uploadCollectionBatch(
-            update.images.filter(img => !!img) as IConvertedFileMeta[],
+            update.images.filter((img) => !!img) as IConvertedFileMeta[],
             COLLECTION_NAME,
             id,
           )
-          const newImg = imgMeta.map((img) => ({...img}))
+          const newImg = imgMeta.map((img) => ({ ...img }))
           updateWithMeta.images = newImg
         } else updateWithMeta.images = []
 
         updateWithMeta.comments = newComments
 
         const existingUpdateIndex = item.updates.findIndex(
-          upd => upd._id === (update as IResearch.UpdateDB)._id,
+          (upd) => upd._id === (update as IResearch.UpdateDB)._id,
         )
 
         const newItem = {
@@ -220,46 +244,50 @@ export class ResearchStore extends ModuleStore {
     }
   }
 
-  public async editComment(commentId: string, newText: string, update: IResearch.Update | IResearch.UpdateDB) {
+  public async editComment(
+    commentId: string,
+    newText: string,
+    update: IResearch.Update | IResearch.UpdateDB,
+  ) {
     try {
       const item = this.activeResearchItem
       const user = this.activeUser
       if (commentId && item && user && update.comments) {
         const dbRef = this.db
-        .collection<IResearch.Item>(COLLECTION_NAME)
-        .doc(item._id)
+          .collection<IResearch.Item>(COLLECTION_NAME)
+          .doc(item._id)
         const id = dbRef.id
 
         const pastComments = toJS(update.comments)
         const commentIndex = pastComments.findIndex(
-          comment => comment._creatorId === user._id && comment._id === commentId,
+          (comment) =>
+            comment._creatorId === user._id && comment._id === commentId,
         )
         const updateWithMeta = { ...update }
         if (update.images.length > 0) {
           const imgMeta = await this.uploadCollectionBatch(
-            update.images.filter(img => !!img) as IConvertedFileMeta[],
+            update.images.filter((img) => !!img) as IConvertedFileMeta[],
             COLLECTION_NAME,
             id,
           )
-          const newImg = imgMeta.map((img) => ({...img}))
+          const newImg = imgMeta.map((img) => ({ ...img }))
           updateWithMeta.images = newImg
         } else updateWithMeta.images = []
 
-        
         if (commentIndex !== -1) {
           pastComments[commentIndex].text = newText.slice(0, 400).trim()
           pastComments[commentIndex]._edited = new Date().toISOString()
           updateWithMeta.comments = pastComments
 
           const existingUpdateIndex = item.updates.findIndex(
-            upd => upd._id === (update as IResearch.UpdateDB)._id,
+            (upd) => upd._id === (update as IResearch.UpdateDB)._id,
           )
-  
+
           const newItem = {
             ...toJS(item),
             updates: [...toJS(item.updates)],
           }
-          
+
           newItem.updates[existingUpdateIndex] = {
             ...(updateWithMeta as IResearch.UpdateDB),
           }
@@ -289,11 +317,19 @@ export class ResearchStore extends ModuleStore {
     try {
       // populate DB
       // define research
+      const userCountry = getUserCountry(user)
       const research: IResearch.Item = {
         ...values,
         _createdBy: values._createdBy ? values._createdBy : user.userName,
         moderation: values.moderation ? values.moderation : 'accepted', // No moderation needed for researches for now
         updates,
+        creatorCountry:
+          (values._createdBy && values._createdBy === user.userName) ||
+          !values._createdBy
+            ? userCountry
+            : values.creatorCountry
+            ? values.creatorCountry
+            : '',
       }
       logger.debug('populating database', research)
       // set the database document
@@ -308,7 +344,7 @@ export class ResearchStore extends ModuleStore {
       this.updateResearchUploadStatus('Complete')
     } catch (error) {
       logger.debug('error', error)
-      throw new Error(error.message)
+      //throw new Error(error.message)
     }
   }
 
@@ -328,7 +364,7 @@ export class ResearchStore extends ModuleStore {
         const updateWithMeta = { ...update }
         if (update.images.length > 0) {
           const imgMeta = await this.uploadCollectionBatch(
-            update.images.filter(img => !!img) as IConvertedFileMeta[],
+            update.images.filter((img) => !!img) as IConvertedFileMeta[],
             COLLECTION_NAME,
             id,
           )
@@ -339,7 +375,7 @@ export class ResearchStore extends ModuleStore {
 
         // populate DB
         const existingUpdateIndex = item.updates.findIndex(
-          upd => upd._id === (update as IResearch.UpdateDB)._id,
+          (upd) => upd._id === (update as IResearch.UpdateDB)._id,
         )
         const newItem = {
           ...toJS(item),
@@ -382,9 +418,13 @@ export class ResearchStore extends ModuleStore {
         this.updateUpdateUploadStatus('Complete')
       } catch (error) {
         logger.error('error', error)
-        throw new Error(error?.message)
       }
     }
+  }
+  get userVotedActiveResearchUseful(): boolean {
+    const researchId = this.activeResearchItem!._id
+    const userVotedResearch = this.activeUser?.votedUsefulResearch || {}
+    return userVotedResearch[researchId] ? true : false
   }
 }
 

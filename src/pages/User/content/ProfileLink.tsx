@@ -1,4 +1,4 @@
-import { Link } from 'rebass/styled-components'
+import { Link } from 'theme-ui'
 
 import ElWithBeforeIcon from 'src/components/ElWithBeforeIcon'
 
@@ -9,7 +9,7 @@ import IconBazar from 'src/assets/icons/icon-bazar.svg'
 import IconSocial from 'src/assets/icons/icon-social-media.svg'
 import IconForum from 'src/assets/icons/icon-forum.svg'
 import IconWebsite from 'src/assets/icons/icon-website.svg'
-import { IUser } from 'src/models/user.models'
+import type { IUser } from 'src/models/user.models'
 
 interface IProps {
   link: IUser['links'][0]

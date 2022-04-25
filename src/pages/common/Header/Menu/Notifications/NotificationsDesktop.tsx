@@ -1,5 +1,5 @@
 import { Component } from 'react'
-import { UserStore } from 'src/stores/User/user.store'
+import type { UserStore } from 'src/stores/User/user.store'
 import { inject, observer } from 'mobx-react'
 import Flex from 'src/components/Flex'
 import { NotificationsModal } from './NotificationsModal'
@@ -40,7 +40,7 @@ export default class NotificationsDesktop extends Component<IProps, IState> {
     const areThereNotifications = Boolean(
       user?.notifications?.length &&
         !(
-          user?.notifications?.filter(notification => !notification.read)
+          user?.notifications?.filter((notification) => !notification.read)
             .length === 0
         ),
     )
@@ -50,20 +50,22 @@ export default class NotificationsDesktop extends Component<IProps, IState> {
     return (
       <>
         {user ? (
-          <div data-cy="notifications-desktop">
-            <NotificationsIcon
-              onCLick={() => this.toggleNotificationsModal()}
-              isMobileMenuActive={false}
-              areThereNotifications={areThereNotifications}
-            />
-            <Flex>
-              {showNotificationsModal && (
-                <Foco onClickOutside={() => this.toggleNotificationsModal()}>
-                  <NotificationsModal />
-                </Foco>
-              )}
-            </Flex>
-          </div>
+          <Foco
+            onClickOutside={() =>
+              this.setState({
+                showNotificationsModal: false,
+              })
+            }
+          >
+            <div data-cy="notifications-desktop">
+              <NotificationsIcon
+                onCLick={() => this.toggleNotificationsModal()}
+                isMobileMenuActive={false}
+                areThereNotifications={areThereNotifications}
+              />
+              <Flex>{showNotificationsModal && <NotificationsModal />}</Flex>
+            </div>
+          </Foco>
         ) : (
           ''
         )}

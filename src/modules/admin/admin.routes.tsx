@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { Route, Switch, withRouter } from 'react-router-dom'
-import { IPageMeta } from 'src/pages/PageList'
+import type { IPageMeta } from 'src/pages/PageList'
 import { MODULE } from '..'
 
 const moduleName = MODULE.ADMIN
@@ -55,7 +55,7 @@ export const ADMIN_PAGES: IPageMeta[] = [
 const routes = () => (
   <Suspense fallback={<div></div>}>
     <Switch>
-      {ADMIN_PAGES.map(page => (
+      {ADMIN_PAGES.map((page) => (
         <Route
           key={page.path}
           path={`/${moduleName}${page.path}`}

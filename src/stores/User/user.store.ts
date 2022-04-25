@@ -1,16 +1,17 @@
 import { observable, action, makeObservable, toJS, computed } from 'mobx'
-import {
+import type {
   INotification,
   IUser,
   IUserDB,
   NotificationType,
 } from 'src/models/user.models'
-import { IUserPP, IUserPPDB } from 'src/models/user_pp.models'
-import { auth, EmailAuthProvider, IFirebaseUser } from 'src/utils/firebase'
-import { RootStore } from '..'
+import type { IUserPP, IUserPPDB } from 'src/models/user_pp.models'
+import type { IFirebaseUser } from 'src/utils/firebase'
+import { auth, EmailAuthProvider } from 'src/utils/firebase'
+import type { RootStore } from '..'
 import { ModuleStore } from '../common/module.store'
 import { Storage } from '../storage'
-import { IConvertedFileMeta } from 'src/components/ImageInput/ImageInput'
+import type { IConvertedFileMeta } from 'src/types'
 import { formatLowerNoSpecial, randomID } from 'src/utils/helpers'
 import { logger } from 'src/logger'
 import { getLocationData } from 'src/utils/getLocationData'
@@ -34,7 +35,7 @@ export class UserStore extends ModuleStore {
 
   // redirect calls for verifiedUsers to the aggregation store list
   @computed get verifiedUsers(): { [user_id: string]: boolean } {
-    return this.aggregationsStore.aggregations.users_verified
+    return this.aggregationsStore.aggregations.users_verified || {}
   }
 
   @action
@@ -233,10 +234,7 @@ export class UserStore extends ModuleStore {
     try {
       await authUser.reauthenticateAndRetrieveDataWithCredential(credential)
       const user = this.user as IUser
-      await this.db
-        .collection(COLLECTION_NAME)
-        .doc(user.userName)
-        .delete()
+      await this.db.collection(COLLECTION_NAME).doc(user.userName).delete()
       await authUser.delete()
       // TODO - delete user avatar
       // TODO - show deleted notification
@@ -262,6 +260,7 @@ export class UserStore extends ModuleStore {
       userName,
       moderation: 'awaiting-moderation',
       votedUsefulHowtos: {},
+      votedUsefulResearch: {},
       notifications: [],
       ...fields,
     }
@@ -283,7 +282,11 @@ export class UserStore extends ModuleStore {
 
       if (votedUsefulHowtos[howtoId]) {
         //get how to author from howtoid
-        this.triggerNotification('howto_useful', howtoAuthor, howtoSlug)
+        this.triggerNotification(
+          'howto_useful',
+          howtoAuthor,
+          '/how-to/' + howtoSlug,
+        )
       }
       await this.updateUserProfile({ votedUsefulHowtos })
     }
@@ -294,12 +297,35 @@ export class UserStore extends ModuleStore {
     this.aggregationsStore.updateAggregation('users_verified')
   }
 
+  @action
+  public async updateUsefulResearch(
+    researchId: string,
+    researchAuthor: string,
+    researchSlug: string,
+  ) {
+    if (this.user) {
+      // toggle entry on user votedUsefulResearch to either vote or unvote a Research
+      // this will updated the main Research via backend `updateUserVoteStats` function
+      const votedUsefulResearch = toJS(this.user.votedUsefulResearch) || {}
+      votedUsefulResearch[researchId] = !votedUsefulResearch[researchId]
+
+      if (votedUsefulResearch[researchId]) {
+        this.triggerNotification(
+          'research_useful',
+          researchAuthor,
+          '/research/' + researchSlug,
+        )
+      }
+      await this.updateUserProfile({ votedUsefulResearch })
+    }
+  }
+
   // use firebase auth to listen to change to signed in user
   // on sign in want to load user profile
   // strange implementation return the unsubscribe object on subscription, so stored
   // to authUnsubscribe variable for use later
   private _listenToAuthStateChanges(checkEmailVerification = false) {
-    this.authUnsubscribe = auth.onAuthStateChanged(authUser => {
+    this.authUnsubscribe = auth.onAuthStateChanged((authUser) => {
       this.authUser = authUser
       if (authUser) {
         this.userSignedIn(authUser)
@@ -321,9 +347,8 @@ export class UserStore extends ModuleStore {
   public async triggerNotification(
     type: NotificationType,
     username: string,
-    howToId?: string,
+    relevantUrl: string,
   ) {
-    const howToUrl = '/how-to/'
     try {
       const triggeredBy = this.activeUser
       if (triggeredBy) {
@@ -338,7 +363,7 @@ export class UserStore extends ModuleStore {
             displayName: triggeredBy.displayName,
             userId: triggeredBy._id,
           },
-          relevantUrl: howToUrl + howToId,
+          relevantUrl: relevantUrl,
           type: type,
           read: false,
         }
@@ -374,7 +399,7 @@ export class UserStore extends ModuleStore {
       const user = this.activeUser
       if (user) {
         const notifications = toJS(user.notifications)
-        notifications?.forEach(notification => (notification.read = true))
+        notifications?.forEach((notification) => (notification.read = true))
         const updatedUser: IUser = {
           ...toJS(user),
           notifications,
@@ -399,7 +424,7 @@ export class UserStore extends ModuleStore {
       const user = this.activeUser
       if (id && user && user.notifications) {
         const notifications = toJS(user.notifications).filter(
-          notification => !(notification._id === id),
+          (notification) => !(notification._id === id),
         )
 
         const updatedUser: IUser = {

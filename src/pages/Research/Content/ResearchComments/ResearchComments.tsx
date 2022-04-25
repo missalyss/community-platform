@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import ReactGA from 'react-ga'
-import { Box, Flex } from 'rebass/styled-components'
-import { useCommonStores } from 'src/index'
+import { Box, Flex } from 'theme-ui'
 import { Button } from 'oa-components'
-import Text from 'src/components/Text'
-import { Comment } from 'src/components/Comment/Comment'
 import { CommentTextArea } from 'src/components/Comment/CommentTextArea'
-import { IComment } from 'src/models'
+import type { IComment } from 'src/models'
 import { logger } from 'src/logger'
 import { useResearchStore } from 'src/stores/Research/research.store'
-import { IResearch } from 'src/models/research.models'
-import styled from 'styled-components'
+import type { IResearch } from 'src/models/research.models'
+import { CommentList } from 'src/components/CommentList/CommentList'
+import { useCommonStores } from 'src/index'
+import styled from '@emotion/styled'
 
 interface IProps {
   comments?: IComment[]
   update: IResearch.UpdateDB
+  updateIndex: number
 }
 
 const BoxStyled = styled(Box)`
@@ -27,29 +27,13 @@ const BoxMain = styled(Box)`
   margin-right: 20px;
   margin-top: 20px;
 `
-const ButtonStyled = styled(Button)`
-  float: right;
-  margin-top: 1em !important;
-`
 
-const ButtonMain = styled(Button)`
-  width: 100%;
-  justify-content: center;
-  &:hover {
-    background-color: #c2daf0;
-  }
-  &:hover.viewComments {
-    background-color: #ffffff;
-  }
-`
-
-export const ResearchComments = ({ comments, update }: IProps) => {
+export const ResearchComments = ({ comments, update, updateIndex }: IProps) => {
   const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(false)
-  const { stores } = useCommonStores()
   const researchStore = useResearchStore()
-  const user = stores.userStore.activeUser
   const [viewComments, setViewComments] = useState(false)
+  const { stores } = useCommonStores()
 
   async function onSubmit(comment: string) {
     try {
@@ -57,6 +41,14 @@ export const ResearchComments = ({ comments, update }: IProps) => {
       await researchStore.addComment(comment, update as IResearch.Update)
       setLoading(false)
       setComment('')
+      const currResearchItem = researchStore.activeResearchItem
+      if (currResearchItem) {
+        await stores.userStore.triggerNotification(
+          'new_comment_research',
+          currResearchItem._createdBy,
+          '/research/' + currResearchItem.slug + '#update_' + updateIndex,
+        )
+      }
 
       ReactGA.event({
         category: 'Comments',
@@ -153,64 +145,59 @@ export const ResearchComments = ({ comments, update }: IProps) => {
       backgroundColor={viewComments ? '#e2edf7' : 'inherit'}
       marginBottom={viewComments ? '20px' : '0'}
     >
-      {(user || (comments && comments.length > 0)) && (
-        <ButtonMain
-          variant="subtle"
-          fontSize="14px"
-          onClick={onButtonClick}
-          backgroundColor={viewComments ? '#c2daf0' : '#e2edf7'}
-          className={viewComments ? 'viewComments' : ''}
-        >
-          <Flex>
-            <Text>{setButtonText()}</Text>
-          </Flex>
-        </ButtonMain>
-      )}
+      <Button
+        variant="subtle"
+        sx={{
+          fontSize: '14px',
+          width: '100%',
+          textAlign: 'center',
+          display: 'block',
+        }}
+        onClick={onButtonClick}
+        backgroundColor={viewComments ? '#c2daf0' : '#e2edf7'}
+        className={viewComments ? 'viewComments' : ''}
+        data-cy={!viewComments ? 'open-comments' : ''}
+      >
+        <>{setButtonText()}</>
+      </Button>
       {viewComments && (
         <Flex
           mt={5}
-          flexDirection="column"
-          alignItems="end"
+          sx={{ flexDirection: 'column', alignItems: 'end' }}
           marginTop="15px"
           data-cy="update-comments"
         >
-          {comments ? (
-            <Flex
-              width="100%"
-              mb={4}
-              flexDirection="column"
-              alignItems="center"
+          <CommentList
+            articleTitle={researchStore.activeResearchItem?.title}
+            comments={comments}
+            handleEdit={handleEdit}
+            handleDelete={handleDelete}
+            handleEditRequest={handleEditRequest}
+          />
+          <BoxStyled
+            sx={{
+              width: [`70%`, `80%`, `90%`],
+            }}
+          >
+            <CommentTextArea
+              data-cy="comment-text-area"
+              comment={comment}
+              onChange={setComment}
+              loading={loading}
+            />
+            <Button
+              data-cy="comment-submit"
+              disabled={!Boolean(comment.trim()) || loading}
+              variant="primary"
+              onClick={() => onSubmit(comment)}
+              mt={3}
+              sx={{
+                float: 'right',
+              }}
             >
-              {comments &&
-                comments.map(comment => (
-                  <Comment
-                    key={comment._id}
-                    {...comment}
-                    handleEdit={handleEdit}
-                    handleDelete={handleDelete}
-                    handleEditRequest={handleEditRequest}
-                  />
-                ))}
-            </Flex>
-          ) : null}
-          {user ? (
-            <BoxStyled width={[7 / 10, 8 / 10, 9 / 10]}>
-              <CommentTextArea
-                data-cy="comment-text-area"
-                comment={comment}
-                onChange={setComment}
-                loading={loading}
-              />
-              <ButtonStyled
-                data-cy="comment-submit"
-                disabled={!Boolean(comment.trim()) || loading}
-                variant="primary"
-                onClick={() => onSubmit(comment)}
-              >
-                Comment
-              </ButtonStyled>
-            </BoxStyled>
-          ) : null}
+              Comment
+            </Button>
+          </BoxStyled>
         </Flex>
       )}
     </BoxMain>

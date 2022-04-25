@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { Box } from 'rebass/styled-components'
-import styled from 'styled-components'
-import { UserStore } from 'src/stores/User/user.store'
+import { Box } from 'theme-ui'
+import styled from '@emotion/styled'
+import type { UserStore } from 'src/stores/User/user.store'
 import { inject, observer } from 'mobx-react'
 import { COMMUNITY_PAGES_PROFILE } from 'src/pages/PageList'
 import { NavLink } from 'react-router-dom'
@@ -36,9 +36,7 @@ const ModalContainerInner = styled(Box)`
   border-radius: 5px;
 `
 
-const ModalLink = styled(NavLink).attrs(() => ({
-  activeClassName: 'current',
-}))`
+const ModalLink = styled(NavLink)`
   z-index: ${theme.zIndex.modalProfile};
   display: flex;
   flex-direction: column;
@@ -62,6 +60,11 @@ const ModalLink = styled(NavLink).attrs(() => ({
     color: ${theme.colors.blue};
   }
 `
+
+ModalLink.defaultProps = {
+  activeClassName: 'current',
+}
+
 @inject('userStore')
 @observer
 export class ProfileModal extends React.Component<IProps> {
@@ -88,7 +91,7 @@ export class ProfileModal extends React.Component<IProps> {
               <Flex>Profile</Flex>
             </ModalLink>
           </Flex>
-          {COMMUNITY_PAGES_PROFILE.map(page => (
+          {COMMUNITY_PAGES_PROFILE.map((page) => (
             <AuthWrapper roleRequired={page.requiredRole} key={page.path}>
               <Flex>
                 <ModalLink to={page.path} data-cy={`menu-${page.title}`}>

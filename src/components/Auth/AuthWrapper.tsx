@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { inject, observer } from 'mobx-react'
-import { UserStore } from 'src/stores/User/user.store'
-import { UserRole } from 'src/models/user.models'
+import type { UserStore } from 'src/stores/User/user.store'
+import type { UserRole } from 'src/models/user.models'
 import { SITE, DEV_SITE_ROLE } from 'src/config/config'
 
 /*
@@ -30,7 +30,7 @@ export class AuthWrapper extends React.Component<IProps, IState> {
     }
 
     const { roleRequired } = this.props
-    let userRoles = user?.userRoles || []
+    const userRoles = user?.userRoles || []
 
     // If no role required just check if user is logged in
     if (!roleRequired) {
@@ -42,10 +42,6 @@ export class AuthWrapper extends React.Component<IProps, IState> {
       process.env.NODE_ENV !== 'test' &&
       (SITE === 'dev_site' || SITE === 'preview')
     ) {
-      // default ignore existing user roles
-      if (user) {
-        userRoles = []
-      }
       if (DEV_SITE_ROLE) {
         return DEV_SITE_ROLE === roleRequired
       }

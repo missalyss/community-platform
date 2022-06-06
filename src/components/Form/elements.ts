@@ -74,3 +74,34 @@ export const ErrorMessage = styled.span`
   height: ${theme.space[0]};
   margin: 5px;
 `
+
+export const Checkbox = styled.input`
+  appearance: none;
+  height: 17px;
+  width: 17px;
+  border: 2px black solid;
+  border-radius: 3px;
+  background-color: #ffffff;
+
+  &:hover {
+    background-color: #f4f6f7;
+    cursor: pointer;
+  }
+
+  &:after {
+      position: absolute;
+      content: '';
+      background: red;
+      display: block;
+      width: 100%;
+      height: 30px;
+      -webkit-transform: rotate(-45deg);
+      transform: rotate(-45deg);
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      margin: auto;
+    }
+  }
+`

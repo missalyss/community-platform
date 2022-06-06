@@ -5,6 +5,7 @@ import {
   TextAreaDisabled,
   ErrorMessage,
   StyledDatePicker,
+  Checkbox,
 } from './elements'
 import type { FieldRenderProps } from 'react-final-form'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -128,3 +129,7 @@ export const TextAreaField = ({
       {meta.error && meta.touched && <ErrorMessage>{meta.error}</ErrorMessage>}
     </>
   )
+
+export const CheckboxField = ({ input, ...rest }: IFieldProps) => (
+  <Checkbox type="checkbox" {...input} {...rest} />
+)

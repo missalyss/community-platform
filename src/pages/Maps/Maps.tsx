@@ -2,6 +2,7 @@ import * as React from 'react'
 import { inject, observer } from 'mobx-react'
 import type { RouteComponentProps } from 'react-router'
 import { withRouter, Route, Switch } from 'react-router'
+import VerifiedBadgeIcon from 'src/assets/icons/icon-verified-badge.svg'
 
 import type { MapsStore } from 'src/stores/Maps/maps.store'
 import { MapView, Controls } from './Content'
@@ -109,7 +110,15 @@ class MapsPage extends React.Component<IProps, IState> {
               <>
                 <Controls
                   mapRef={this.mapRef}
-                  availableFilters={MAP_GROUPINGS}
+                  availableFilters={[
+                    {
+                      grouping: 'verified-filter',
+                      displayName: 'Verified',
+                      type: 'verified',
+                      icon: VerifiedBadgeIcon,
+                    } as any,
+                    ...MAP_GROUPINGS,
+                  ]}
                   onFilterChange={(selected) => {
                     this.props.mapsStore.setActivePinFilters(selected)
                   }}

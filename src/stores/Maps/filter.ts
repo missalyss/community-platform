@@ -6,6 +6,10 @@ export function filterMapPinsByType(
 ) {
   // filter pins to include matched pin type or subtype
   // excluding items which have been marked as deleted=true
+  if (filters.includes('verified')) {
+    return mapPins.filter((p) => p.verified)
+  }
+
   return mapPins.filter(
     (pin) =>
       !pin._deleted &&

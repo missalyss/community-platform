@@ -47,8 +47,14 @@ class GroupingFilterDesktop extends Component<IProps, IState> {
 
   transform = (items: Record<IPinGrouping, Array<IMapGrouping>>) => {
     return Object.keys(items).map((item) => {
+      let label = item === 'place' ? 'All Workspaces' : 'Others'
+
+      if (item === 'verified-filter') {
+        label = ''
+      }
+
       return {
-        label: item === 'place' ? 'All Workspaces' : 'Others',
+        label,
         options: this.asOptions(items[item]),
       }
     })
@@ -59,14 +65,21 @@ class GroupingFilterDesktop extends Component<IProps, IState> {
       .filter((item) => {
         return !item.hidden
       })
-      .map((item) => ({
-        label: item.displayName,
-        value: item.subType ? item.subType : item.type,
-        icon: item.icon,
-        number: this.injected.mapsStore.getPinsNumberByFilterType(
-          item.subType ? item.subType.split(' ') : item.type.split(' '),
-        ),
-      }))
+      .map((item) => {
+        const filterType =
+          (item.type as string) === 'verified'
+            ? ['verified']
+            : item.subType
+            ? item.subType.split(' ')
+            : item.type.split(' ')
+
+        return {
+          label: item.displayName,
+          value: item.subType ? item.subType : item.type,
+          icon: item.icon,
+          number: this.injected.mapsStore.getPinsNumberByFilterType(filterType),
+        }
+      })
   }
 
   render() {

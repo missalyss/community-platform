@@ -57,20 +57,31 @@ class GroupingFilterMobile extends Component<IProps, IState> {
       .filter((item) => {
         return !item.hidden
       })
-      .map((item) => ({
-        label: item.displayName,
-        value: item.subType ? item.subType : item.type,
-        icon: item.icon,
-        number: this.injected.mapsStore.getPinsNumberByFilterType(
-          item.subType ? item.subType.split(' ') : item.type.split(' '),
-        ),
-      }))
+      .map((item) => {
+        const filterType =
+          (item.type as string) === 'verified'
+            ? ['verified']
+            : item.subType
+            ? item.subType.split(' ')
+            : item.type.split(' ')
+        return {
+          label: item.displayName,
+          value: item.subType ? item.subType : item.type,
+          icon: item.icon,
+          number: this.injected.mapsStore.getPinsNumberByFilterType(filterType),
+        }
+      })
   }
 
   render() {
     const { items, entityType } = this.props
     const options = this.asOptions(items)
     const { selectedItems } = this.props
+    let label = entityType === 'place' ? 'All Workspaces' : 'Others'
+
+    if (entityType === 'verified-filter') {
+      label = ''
+    }
 
     return (
       <Flex sx={{ flexDirection: 'column' }}>
@@ -82,7 +93,7 @@ class GroupingFilterMobile extends Component<IProps, IState> {
             paddingBottom: 2,
           }}
         >
-          {entityType === 'place' ? 'All Workspaces' : 'Others'}
+          {label}
         </Text>
         {options.map((filter) => (
           <Flex
